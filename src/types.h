@@ -7,12 +7,12 @@
 
 enum MessageType
 {
-    MessageType_Register = 0,
-    MessageType_KeepAlive,
-    MessageType_Catalog,
-    MessageType_CallAnswer,
-    MessageType_CallFailed
+    MessageType_Register = 0,       //注册
+    MessageType_KeepAlive = 1,      //心跳
+    MessageType_Catalog = 2,        //目录查询
+    MessageType_CallAnswer = 3,     //视频应答
+    MessageType_CallFailed = 4,     //视频失败
+    MessageType_Unregister = 5,     //注销
 };
-
 
 #endif // TYPES_H

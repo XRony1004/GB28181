@@ -50,16 +50,31 @@ public:
     void stop();
 
     void doSendCatalog(const CameraDevice &device);
+    void doSendDeviceInfo(const CameraDevice &device);
+    void doSendDeviceStatus(const CameraDevice &device);
+    void doSendBasicParam(const CameraDevice &device);
+    void doSendVideoParamOpt(const CameraDevice &device);
     void doSendVideoParamConfig(const CameraDevice &device);
+    void doSendAudioParamOpt(const CameraDevice &device);
+    void doSendAudioParamConfig(const CameraDevice &device);
+    void doSendOSDParamConfig(const CameraDevice &device);
     void doSendInvitePlay(const VideoChannel *channelNode);
+    void doSendKickOffline(const CameraDevice &device, int type = 1, const char *registerIp = nullptr, int registerPort = 0);
+    void doSendDeviceReboot(const CameraDevice &device);
 
-    void do_control_VideoParamConfig(const CameraDevice &device);
+    void do_control_VideoParamConfig(const CameraDevice &device);                   // 视频参数配置
+    void do_control_BasicParamConfig(const CameraDevice &device);                   // 设备基本参数配置
+    void do_control_DeviceMultiCastConfig(const CameraDevice &device);             // 设备基本参数配置(组播)
+    void do_control_VideoParamConfig_CloseMultiCast(const CameraDevice &device);   // 视频参数配置(取消组播)
+    void do_control_AudioParamConfig(const CameraDevice &device);                     // 音频参数配置
+    void do_control_OSDParamConfig(const CameraDevice &device);                    // OSD 叠加参数配置(特殊十字符╋ 空字符)
+    void do_control_OSDParamConfig_Close(const CameraDevice &device);              // OSD 取消参数配置(特殊十字符╋ 空字符)
+
 
     std::list<CameraDevice> getDeviceList(){return mDeviceList;}
 
     ///根据ssrc查找对应的videoChannel
     VideoChannel* getVideoChannel(int ssrc);
-
 protected:
     void run(); //线程执行函数
 
@@ -93,7 +108,14 @@ private:
     void ResponseCallAck(struct eXosip_t * peCtx, eXosip_event_t *je);
 
     int SendQueryCatalog(struct eXosip_t *peCtx , CameraDevice deviceNode); //请求设备目录
-    int SendQueryVideoParamConfig(struct eXosip_t *peCtx , CameraDevice deviceNode); //请求设备目录
+    int SendQueryDeviceInfo(struct eXosip_t *peCtx, CameraDevice deviceNode);
+    int SendQueryDeviceStatus(struct eXosip_t *peCtx, CameraDevice deviceNode);
+    int SendQueryBasicParam(struct eXosip_t *peCtx, CameraDevice deviceNode);
+    int SendQueryVideoParamConfig(struct eXosip_t *peCtx , CameraDevice deviceNode);
+    int SendQueryVideoParamOpt(struct eXosip_t *peCtx, CameraDevice deviceNode);
+    int SendQueryAudioParamOpt(struct eXosip_t *peCtx, CameraDevice deviceNode);
+    int SendQueryAudioParamConfig(struct eXosip_t *peCtx, CameraDevice deviceNode);
+    int SendQueryOSDParamConfig(struct eXosip_t *peCtx, CameraDevice deviceNode);
 
     //请求视频信息，SDP信息
     int SendInvitePlay(struct eXosip_t *peCtx, const VideoChannel *channelNode);
@@ -109,6 +131,12 @@ private:
     void deviceUpdate(const CameraDevice &device);   //设备更新，catalog请求返回的设备信息更新
     void receiveMessage(const char *deviceID, const MessageType &type, const char *msgBody);  //接收到消息
 
+    // 新增的私有函数
+    void HandleDeviceUnregister(struct eXosip_t *peCtx, eXosip_event_t *je);
+    void UnregisterSuccess(struct eXosip_t *peCtx, eXosip_event_t *je);
+    void RemoveDeviceFromList(const char *deviceId);
+    int SendKickOffline(struct eXosip_t *peCtx, const CameraDevice &deviceNode, int type, const char *registerIp, int registerPort);
+    int SendDeviceReboot(struct eXosip_t *peCtx, const CameraDevice &deviceNode);
 };
 
 #endif // GB28181SERVER_H
