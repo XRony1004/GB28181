@@ -12,6 +12,7 @@
     #include <windows.h>
 #endif
 #include <eXosip2/eXosip.h>
+#include <eXosip2/eX_subscribe.h>
 
 
 #include "types.h"
@@ -70,6 +71,10 @@ public:
     void do_control_OSDParamConfig(const CameraDevice &device);                    // OSD 叠加参数配置(特殊十字符╋ 空字符)
     void do_control_OSDParamConfig_Close(const CameraDevice &device);              // OSD 取消参数配置(特殊十字符╋ 空字符)
 
+    // 报警相关功能
+    void do_control_SetGuard(const CameraDevice &device);                          // 报警布防
+    void do_control_ResetGuard(const CameraDevice &device);                        // 报警撤防
+    void do_subscribe_Alarm(const CameraDevice &device);                           // 报警订阅
 
     std::list<CameraDevice> getDeviceList(){return mDeviceList;}
 

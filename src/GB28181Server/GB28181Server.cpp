@@ -1920,7 +1920,7 @@ void GB28181Server::do_control_DeviceMultiCastConfig(const CameraDevice &deviceN
             mxmlNewText(child, 0, "TRUE");
 
             child = mxmlNewElement(item, "MultiCastIPAddress");
-            mxmlNewText(child, 0, "239.225.187.159");
+            mxmlNewText(child, 0, "239.255.187.159");
 
             child = mxmlNewElement(item, "MultiCastPort");
             mxmlNewText(child, 0, "60000");
@@ -2016,14 +2016,12 @@ void GB28181Server::do_control_VideoParamConfig_CloseMultiCast(const CameraDevic
             mxmlNewText(child, 0, "FALSE");
 
             child = mxmlNewElement(item, "MultiCastIPAddress");
-            mxmlNewText(child, 0, "239.225.187.159");
+            mxmlNewText(child, 0, "239.255.187.159");
 
             child = mxmlNewElement(item, "MultiCastPort");
             mxmlNewText(child, 0, "60005");
 
             mxmlSaveString(tree, buf, BUFF_SIZE, whitespace_cb);
-
-            // strcpy(buff, )
 
             SPDLOG_INFO("xml buf: {}\n\nend", buf);
 
@@ -2137,11 +2135,7 @@ void GB28181Server::do_control_VideoParamConfig(const CameraDevice &deviceNode)
 
             // child = mxmlNewElement(item, "MainStream");
             // mxmlNewText(child, 0, "TRUE");
-
-
             mxmlSaveString(tree, buf, BUFF_SIZE, whitespace_cb);
-
-            // strcpy(buff, )
 
             SPDLOG_INFO("xml buf: {}\n\nend", buf);
 
@@ -2637,4 +2631,267 @@ VideoChannel* GB28181Server::getVideoChannel(int ssrc)
     }
 
     return channel;
+}
+
+// =======================================  报警相关功能 ====================================================
+
+// 报警布防
+void GB28181Server::do_control_SetGuard(const CameraDevice &deviceNode)
+{
+    SPDLOG_INFO("do_control_SetGuard enter 报警布防");
+
+    char sn[32] = {0};
+    int ret;
+    mxml_node_t *tree, *query, *node;
+
+    // peCtx
+    auto peCtx = eCtx;
+
+    const char *deviceId = deviceNode.DeviceID.c_str();
+    const char *platformSipId = SERVER_SIP_ID;
+
+    const char *platformIpAddr= deviceNode.IPAddress.c_str();
+    int platformSipPort = deviceNode.Port;
+
+    const char *localSipId = SERVER_SIP_ID;
+    const char *localIpAddr= LOCAL_IP;
+
+    const int BUFF_SIZE = 1024;
+
+    tree = mxmlNewXML("1.0");
+    if (tree != NULL)
+    {
+        query = mxmlNewElement(tree, "Control");
+        if (query != NULL)
+        {
+            char buf[BUFF_SIZE] = { 0 };
+            char dest_call[256], source_call[256];
+
+            node = mxmlNewElement(query, "CmdType");
+            mxmlNewText(node, 0, "DeviceControl");
+
+            node = mxmlNewElement(query, "SN");
+            snprintf(sn, 32, "%d", SN++);
+            mxmlNewText(node, 0, sn);
+
+            node = mxmlNewElement(query, "DeviceID");
+            mxmlNewText(node, 0, deviceId);
+
+            node = mxmlNewElement(query, "GuardCmd");
+            mxmlNewText(node, 0, "SetGuard");
+
+            mxmlSaveString(tree, buf, BUFF_SIZE, whitespace_cb);
+
+            SPDLOG_INFO("xml buf: {}\n\nend", buf);
+
+            osip_message_t *message = NULL;
+            snprintf(dest_call, 256, "sip:%s@%s:%d", platformSipId, platformIpAddr, platformSipPort);
+            snprintf(source_call, 256, "sip:%s@%s:%d", localSipId, localIpAddr, LOCAL_PORT);
+            ret = eXosip_message_build_request(peCtx, &message, "MESSAGE", dest_call, source_call, NULL);
+            if (ret == 0 && message != NULL)
+            {
+                osip_message_set_body(message, buf, strlen(buf));
+                osip_message_set_content_type(message, "Application/MANSCDP+xml");
+                eXosip_lock(peCtx);
+                eXosip_message_send_request(peCtx, message);
+                eXosip_unlock(peCtx);
+                APP_LOG("xml:%s, dest_call:%s, source_call:%s, ok", buf, dest_call, source_call);
+            }
+            else
+            {
+                APP_LOG("eXosip_message_build_request failed!\n");
+            }
+        }
+        else
+        {
+            APP_LOG("mxmlNewElement Control failed!\n");
+        }
+        mxmlDelete(tree);
+    }
+    else
+    {
+        APP_LOG("mxmlNewXML failed!\n");
+    }
+}
+
+// 报警撤防
+void GB28181Server::do_control_ResetGuard(const CameraDevice &deviceNode)
+{
+    SPDLOG_INFO("do_control_ResetGuard enter 报警撤防");
+
+    char sn[32] = {0};
+    int ret;
+    mxml_node_t *tree, *query, *node;
+
+    // peCtx
+    auto peCtx = eCtx;
+
+    const char *deviceId = deviceNode.DeviceID.c_str();
+    const char *platformSipId = SERVER_SIP_ID;
+
+    const char *platformIpAddr= deviceNode.IPAddress.c_str();
+    int platformSipPort = deviceNode.Port;
+
+    const char *localSipId = SERVER_SIP_ID;
+    const char *localIpAddr= LOCAL_IP;
+
+    const int BUFF_SIZE = 1024;
+
+    tree = mxmlNewXML("1.0");
+    if (tree != NULL)
+    {
+        query = mxmlNewElement(tree, "Control");
+        if (query != NULL)
+        {
+            char buf[BUFF_SIZE] = { 0 };
+            char dest_call[256], source_call[256];
+
+            node = mxmlNewElement(query, "CmdType");
+            mxmlNewText(node, 0, "DeviceControl");
+
+            node = mxmlNewElement(query, "SN");
+            snprintf(sn, 32, "%d", SN++);
+            mxmlNewText(node, 0, sn);
+
+            node = mxmlNewElement(query, "DeviceID");
+            mxmlNewText(node, 0, deviceId);
+
+            node = mxmlNewElement(query, "GuardCmd");
+            mxmlNewText(node, 0, "ResetGuard");
+
+            mxmlSaveString(tree, buf, BUFF_SIZE, whitespace_cb);
+
+            SPDLOG_INFO("xml buf: {}\n\nend", buf);
+
+            osip_message_t *message = NULL;
+            snprintf(dest_call, 256, "sip:%s@%s:%d", platformSipId, platformIpAddr, platformSipPort);
+            snprintf(source_call, 256, "sip:%s@%s:%d", localSipId, localIpAddr, LOCAL_PORT);
+            ret = eXosip_message_build_request(peCtx, &message, "MESSAGE", dest_call, source_call, NULL);
+            if (ret == 0 && message != NULL)
+            {
+                osip_message_set_body(message, buf, strlen(buf));
+                osip_message_set_content_type(message, "Application/MANSCDP+xml");
+                eXosip_lock(peCtx);
+                eXosip_message_send_request(peCtx, message);
+                eXosip_unlock(peCtx);
+                APP_LOG("xml:%s, dest_call:%s, source_call:%s, ok", buf, dest_call, source_call);
+            }
+            else
+            {
+                APP_LOG("eXosip_message_build_request failed!\n");
+            }
+        }
+        else
+        {
+            APP_LOG("mxmlNewElement Control failed!\n");
+        }
+        mxmlDelete(tree);
+    }
+    else
+    {
+        APP_LOG("mxmlNewXML failed!\n");
+    }
+}
+
+// 报警订阅
+void GB28181Server::do_subscribe_Alarm(const CameraDevice &deviceNode)
+{
+    SPDLOG_INFO("do_subscribe_Alarm enter 报警订阅");
+
+    char sn[32] = {0};
+    int ret;
+    mxml_node_t *tree, *query, *node;
+
+    // peCtx
+    auto peCtx = eCtx;
+
+    const char *deviceId = deviceNode.DeviceID.c_str();
+    const char *platformSipId = SERVER_SIP_ID;
+
+    const char *platformIpAddr= deviceNode.IPAddress.c_str();
+    int platformSipPort = deviceNode.Port;
+
+    const char *localSipId = SERVER_SIP_ID;
+    const char *localIpAddr= LOCAL_IP;
+
+    const int BUFF_SIZE = 1024;
+
+    // 构建XML内容
+    tree = mxmlNewXML("1.0");
+    if (tree != NULL)
+    {
+        query = mxmlNewElement(tree, "Query");
+        if (query != NULL)
+        {
+            char buf[BUFF_SIZE] = { 0 };
+            char dest_call[256], source_call[256];
+
+            node = mxmlNewElement(query, "CmdType");
+            mxmlNewText(node, 0, "Alarm");
+
+            node = mxmlNewElement(query, "SN");
+            snprintf(sn, 32, "%d", SN++);
+            mxmlNewText(node, 0, sn);
+
+            node = mxmlNewElement(query, "DeviceID");
+            mxmlNewText(node, 0, deviceId);
+
+            node = mxmlNewElement(query, "StartAlarmPriority");
+            mxmlNewText(node, 0, "1");
+
+            node = mxmlNewElement(query, "EndAlarmPriority");
+            mxmlNewText(node, 0, "4");
+
+            node = mxmlNewElement(query, "AlarmMethod");
+            mxmlNewText(node, 0, "0");
+
+            node = mxmlNewElement(query, "StartTime");
+            mxmlNewText(node, 0, "2016-09-20T00:00:00");
+
+            node = mxmlNewElement(query, "EndTime");
+            mxmlNewText(node, 0, "2030-09-28T00:00:00");
+
+            mxmlSaveString(tree, buf, BUFF_SIZE, whitespace_cb);
+
+            SPDLOG_INFO("xml buf: {}\n\nend", buf);
+
+            // 构建SUBSCRIBE请求
+            osip_message_t *subscribe = NULL;
+            snprintf(dest_call, 256, "sip:%s@%s:%d", deviceId, platformIpAddr, platformSipPort);
+            snprintf(source_call, 256, "sip:%s@%s:%d", localSipId, localIpAddr, LOCAL_PORT);
+            
+            ret = eXosip_subscription_build_initial_subscribe(peCtx, &subscribe, dest_call, source_call, NULL, "presence", 90);
+            if (ret == 0 && subscribe != NULL)
+            {
+                // 设置Contact头
+                char contact[256];
+                snprintf(contact, 256, "<sip:%s@%s:%d>", localSipId, localIpAddr, LOCAL_PORT);
+                osip_message_set_contact(subscribe, contact);
+
+                // 设置消息体
+                osip_message_set_body(subscribe, buf, strlen(buf));
+                osip_message_set_content_type(subscribe, "Application/MANSCDP+XML");
+
+                eXosip_lock(peCtx);
+                int subscribe_id = eXosip_subscription_send_initial_request(peCtx, subscribe);
+                eXosip_unlock(peCtx);
+                
+                APP_LOG("send subscribe alarm request, subscribe_id=%d, xml:%s, dest_call:%s, source_call:%s", 
+                        subscribe_id, buf, dest_call, source_call);
+            }
+            else
+            {
+                APP_LOG("eXosip_subscription_build_initial_subscribe failed!\n");
+            }
+        }
+        else
+        {
+            APP_LOG("mxmlNewElement Query failed!\n");
+        }
+        mxmlDelete(tree);
+    }
+    else
+    {
+        APP_LOG("mxmlNewXML failed!\n");
+    }
 }

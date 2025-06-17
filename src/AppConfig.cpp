@@ -35,7 +35,7 @@ std::thread g_testThread;
 // 显示测试菜单
 void showTestMenu() {
     printf("\n=== GB28181 测试菜单 ===\n");
-    printf("查询类功能:\n");
+    printf("---------查询类功能---------:\n");
     printf("  0. 设备目录查询\n");
     printf("  1. 设备信息查询\n");
     printf("  2. 设备状态查询\n");
@@ -45,7 +45,7 @@ void showTestMenu() {
     printf("  6. 音频参数配置范围查询\n");
     printf("  7. 音频参数当前配置查询\n");
     printf("  8. OSD参数当前配置查询\n");
-    printf("\n控制类功能:\n");
+    printf("---------控制类功能---------\n");
     printf("  9. 设备重复注册下线(指定某个设备强制下线)\n");
     printf(" 10. OSD取消参数配置\n");
     printf(" 11. 设备基本参数配置\n");
@@ -55,8 +55,12 @@ void showTestMenu() {
     printf(" 15. 音频参数配置\n");
     printf(" 16. OSD叠加参数配置\n");
     printf(" 17. 设备重启\n");
-    printf("\n系统功能:\n");
-    printf(" 18. 显示菜单\n");
+    printf("---------报警类功能---------\n");
+    printf(" 18. 报警布防\n");
+    printf(" 19. 报警撤防\n");
+    printf(" 20. 报警订阅\n");
+    printf("---------系统功能-----------\n");
+    printf(" 21. 显示菜单\n");
     printf(" 99. 退出测试\n");
     printf("========================\n");
 }
@@ -147,6 +151,18 @@ void executeTestFunction(int functionIndex) {
             Sleep(5000);
             break;
         case 18:
+            printf("=== [报警布防] ===\n");
+            g_server->do_control_SetGuard(g_currentDevice);
+            break;
+        case 19:
+            printf("=== [报警撤防] ===\n");
+            g_server->do_control_ResetGuard(g_currentDevice);
+            break;
+        case 20:
+            printf("=== [报警订阅] ===\n");
+            g_server->do_subscribe_Alarm(g_currentDevice);
+            break;
+        case 21:
             showTestMenu();
             break;
         case 99:
@@ -155,7 +171,7 @@ void executeTestFunction(int functionIndex) {
             break;
         default:
             printf("无效的功能编号: %d\n", functionIndex);
-            printf("请输入 0-18 或 99 退出\n");
+            printf("请输入 0-21 或 99 退出\n");
             break;
     }
 }
@@ -166,7 +182,7 @@ void runTestLoop() {
     showTestMenu();
     
     while (g_testRunning) {
-        printf("\n请输入功能编号 (输入18显示菜单, 99退出): ");
+        printf("\n请输入功能编号 (输入21显示菜单, 99退出): ");
         fflush(stdout);
         
         int choice;
@@ -467,7 +483,7 @@ int main()
     g_server = new GB28181Server();
 
     g_server->setLocalIp("192.168.2.6", 15060);
-    g_server->setGBServerInfo("34020000002000000001", "12345678", "3402000000");
+    g_server->setGBServerInfo("34020000002000000002", "12345678", "3402000000");
 
     g_server->setEventHandle(new MyEventHandler());
 
