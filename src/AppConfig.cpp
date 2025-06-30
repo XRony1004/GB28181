@@ -59,8 +59,11 @@ void showTestMenu() {
     printf(" 18. 报警布防\n");
     printf(" 19. 报警撤防\n");
     printf(" 20. 报警订阅\n");
+    printf("---------流媒体控制---------\n");
+    printf(" 21. OSD叠加参数配置-1\n");
+    printf(" 22. 单播叫流停止\n");
     printf("---------系统功能-----------\n");
-    printf(" 21. 显示菜单\n");
+    printf(" 23. 显示菜单\n");
     printf(" 99. 退出测试\n");
     printf("========================\n");
 }
@@ -163,6 +166,14 @@ void executeTestFunction(int functionIndex) {
             g_server->do_subscribe_Alarm(g_currentDevice);
             break;
         case 21:
+            printf("=== [OSD叠加参数配置-1] ===\n");
+            g_server->do_control_OSDParamConfig1(g_currentDevice);
+            break;
+        case 22:
+            printf("=== [单播叫流停止] ===\n");
+            g_server->do_control_RealStop(g_currentDevice);
+            break;
+        case 23:
             showTestMenu();
             break;
         case 99:
@@ -171,7 +182,7 @@ void executeTestFunction(int functionIndex) {
             break;
         default:
             printf("无效的功能编号: %d\n", functionIndex);
-            printf("请输入 0-21 或 99 退出\n");
+            printf("请输入 0-23 或 99 退出\n");
             break;
     }
 }
@@ -482,8 +493,8 @@ int main()
     // GB28181Server *server = new GB28181Server();
     g_server = new GB28181Server();
 
-    g_server->setLocalIp("192.168.2.6", 15060);
-    g_server->setGBServerInfo("34020000002000000002", "12345678", "3402000000");
+    g_server->setLocalIp("10.255.174.162", 5060);
+    g_server->setGBServerInfo("9900012000103", "12345678", "990001");
 
     g_server->setEventHandle(new MyEventHandler());
 

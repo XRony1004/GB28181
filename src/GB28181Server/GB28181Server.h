@@ -12,7 +12,6 @@
     #include <windows.h>
 #endif
 #include <eXosip2/eXosip.h>
-#include <eXosip2/eX_subscribe.h>
 
 
 #include "types.h"
@@ -69,7 +68,9 @@ public:
     void do_control_VideoParamConfig_CloseMultiCast(const CameraDevice &device);   // 视频参数配置(取消组播)
     void do_control_AudioParamConfig(const CameraDevice &device);                     // 音频参数配置
     void do_control_OSDParamConfig(const CameraDevice &device);                    // OSD 叠加参数配置(特殊十字符╋ 空字符)
+    void do_control_OSDParamConfig1(const CameraDevice &device);                    // OSD 叠加参数配置(特殊十字符╋ 空字符)
     void do_control_OSDParamConfig_Close(const CameraDevice &device);              // OSD 取消参数配置(特殊十字符╋ 空字符)
+    void do_control_RealStop(const CameraDevice &device);                          // 单播叫流停止
 
     // 报警相关功能
     void do_control_SetGuard(const CameraDevice &device);                          // 报警布防

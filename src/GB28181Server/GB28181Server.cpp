@@ -201,7 +201,7 @@ void GB28181Server::run()
                     // 检查是否为注销请求（Expires: 0）
                     osip_header_t *expires_header = NULL;
                     osip_message_get_expires(je->request, 0, &expires_header);
-                    
+
                     if (expires_header != NULL && strcmp(expires_header->hvalue, "0") == 0)
                     {
                         // 处理注销请求
@@ -1165,7 +1165,7 @@ int GB28181Server::SendQueryCatalog(struct eXosip_t *peCtx, CameraDevice deviceN
     return 0;
 }
 
-//发送请求 设备信息查询 
+//发送请求 设备信息查询
 int GB28181Server::SendQueryDeviceInfo(struct eXosip_t *peCtx, CameraDevice deviceNode)
 {
     SPDLOG_INFO("sendQueryDeviceInfo 设备信息查询");
@@ -1232,7 +1232,7 @@ int GB28181Server::SendQueryDeviceInfo(struct eXosip_t *peCtx, CameraDevice devi
     return 0;
 }
 
-//发送请求 设备状态查询 
+//发送请求 设备状态查询
 int GB28181Server::SendQueryDeviceStatus(struct eXosip_t *peCtx, CameraDevice deviceNode)
 {
     SPDLOG_INFO("sendQueryDeviceStatus 设备状态查询");
@@ -1866,6 +1866,96 @@ void GB28181Server::do_control_BasicParamConfig(const CameraDevice &deviceNode)
 
 
 
+// 单播叫流停止
+void GB28181Server::do_control_RealStop(const CameraDevice &deviceNode)
+{
+    SPDLOG_INFO("do_control_RealStop enter  单播叫流停止");
+
+    char sn[32] = {0};
+    int ret;
+    mxml_node_t *tree, *query, *node;
+
+    // peCtx
+    auto peCtx = eCtx;
+
+    const char *deviceId = deviceNode.DeviceID.c_str();
+    const char *platformSipId = SERVER_SIP_ID;
+
+    const char *platformIpAddr= deviceNode.IPAddress.c_str();
+    int platformSipPort = deviceNode.Port;
+
+    const char *localSipId = SERVER_SIP_ID;
+    const char *localIpAddr= LOCAL_IP;
+
+    const int BUFF_SIZE = 1024;
+
+    tree = mxmlNewXML("1.0");
+    if (tree != NULL)
+    {
+        query = mxmlNewElement(tree, "Control");
+        if (query != NULL)
+        {
+            char buf[BUFF_SIZE] = { 0 };
+            char dest_call[256], source_call[256];
+
+            node = mxmlNewElement(query, "CmdType");
+            mxmlNewText(node, 0, "DeviceControl");
+
+            node = mxmlNewElement(query, "SN");
+            snprintf(sn, 32, "%d", SN++);
+            mxmlNewText(node, 0, sn);
+
+            node = mxmlNewElement(query, "DeviceID");
+            mxmlNewText(node, 0, deviceId);
+
+            // 创建 RealStop 节点
+            mxml_node_t *realStopNode = mxmlNewElement(query, "RealStop");
+
+            // 单播流接收端 IP 地址
+            mxml_node_t *steamIpNode = mxmlNewElement(realStopNode, "SteamIp");
+            mxmlNewText(steamIpNode, 0, localIpAddr);
+
+            // 单播流接收端端口
+            mxml_node_t *streamPortNode = mxmlNewElement(realStopNode, "StreamPort");
+            char portStr[16] = {0};
+            snprintf(portStr, sizeof(portStr), "%d", MEDIASERVER_RTP_PORT);
+            mxmlNewText(streamPortNode, 0, portStr);
+
+            mxmlSaveString(tree, buf, BUFF_SIZE, whitespace_cb);
+
+            SPDLOG_INFO("xml buf: {}\n\nend", buf);
+
+            osip_message_t *message = NULL;
+            snprintf(dest_call, 256, "sip:%s@%s:%d", platformSipId, platformIpAddr, platformSipPort);
+            snprintf(source_call, 256, "sip:%s@%s:%d", localSipId, localIpAddr, LOCAL_PORT);
+            ret = eXosip_message_build_request(peCtx, &message, "MESSAGE", dest_call, source_call, NULL);
+            if (ret == 0 && message != NULL)
+            {
+                osip_message_set_body(message, buf, strlen(buf));
+                osip_message_set_content_type(message, "Application/MANSCDP+xml");
+                eXosip_lock(peCtx);
+                eXosip_message_send_request(peCtx, message);
+                eXosip_unlock(peCtx);
+                APP_LOG("xml:%s, dest_call:%s, source_call:%s, ok", buf, dest_call, source_call);
+            }
+            else
+            {
+                APP_LOG("eXosip_message_build_request failed!\n");
+            }
+        }
+        else
+        {
+            APP_LOG("mxmlNewElement Control failed!\n");
+        }
+        mxmlDelete(tree);
+    }
+    else
+    {
+        APP_LOG("mxmlNewXML failed!\n");
+    }
+}
+
+
 // 设备基本参数配置(组播)
 void GB28181Server::do_control_DeviceMultiCastConfig(const CameraDevice &deviceNode)
 {
@@ -1920,7 +2010,7 @@ void GB28181Server::do_control_DeviceMultiCastConfig(const CameraDevice &deviceN
             mxmlNewText(child, 0, "TRUE");
 
             child = mxmlNewElement(item, "MultiCastIPAddress");
-            mxmlNewText(child, 0, "239.255.187.159");
+            mxmlNewText(child, 0, "239.255.2.16");
 
             child = mxmlNewElement(item, "MultiCastPort");
             mxmlNewText(child, 0, "60000");
@@ -2016,10 +2106,10 @@ void GB28181Server::do_control_VideoParamConfig_CloseMultiCast(const CameraDevic
             mxmlNewText(child, 0, "FALSE");
 
             child = mxmlNewElement(item, "MultiCastIPAddress");
-            mxmlNewText(child, 0, "239.255.187.159");
+            mxmlNewText(child, 0, "239.255.2.16");
 
             child = mxmlNewElement(item, "MultiCastPort");
-            mxmlNewText(child, 0, "60005");
+            mxmlNewText(child, 0, "60000");
 
             mxmlSaveString(tree, buf, BUFF_SIZE, whitespace_cb);
 
@@ -2275,6 +2365,8 @@ void GB28181Server::do_control_OSDParamConfig(const CameraDevice &deviceNode)
     int ret;
     mxml_node_t *tree, *query, *node;
 
+    static bool profile_1 = true;
+
     // peCtx
     auto peCtx = eCtx;
 
@@ -2309,11 +2401,29 @@ void GB28181Server::do_control_OSDParamConfig(const CameraDevice &deviceNode)
             mxmlNewText(node, 0, deviceId);
 
             node = mxmlNewElement(query, "OSDParamConfig");
-            mxml_node_t *node1 = mxmlNewElement(node, "Font");
-            mxmlNewText(node1, 0, "黑体");
-            node1 = mxmlNewElement(node, "FontSize");
-            mxmlNewText(node1, 0, "72");
-            node1 = mxmlNewElement(node, "TextColor");
+
+            mxml_node_t *node1;
+
+            if(profile_1) {
+                node1 = mxmlNewElement(node, "Font");
+                mxmlNewText(node1, 0, "黑体");
+                node1 = mxmlNewElement(node, "FontSize");
+                mxmlNewText(node1, 0, "72");
+                node1 = mxmlNewElement(node, "TextColor");
+
+                profile_1 = false;
+
+            } else {
+                node1 = mxmlNewElement(node, "Font");
+                mxmlNewText(node1, 0, "楷体");
+                node1 = mxmlNewElement(node, "FontSize");
+                mxmlNewText(node1, 0, "50");
+                node1 = mxmlNewElement(node, "TextColor");
+
+                profile_1 = true;
+            }
+
+
             mxmlNewText(node1, 0, "0xffffff");
             node1 = mxmlNewElement(node, "BackGroundColor");
             mxmlNewText(node1, 0, "0xffffff");
@@ -2334,19 +2444,19 @@ void GB28181Server::do_control_OSDParamConfig(const CameraDevice &deviceNode)
             mxml_node_t *child1 = mxmlNewElement(osdTime, "Enable");
             mxmlNewText(child1, 0, "TRUE");
             child1 = mxmlNewElement(osdTime, "HPosition");
-            mxmlNewText(child1, 0, "1128");
+            mxmlNewText(child1, 0, "728");
             child1 = mxmlNewElement(osdTime, "VPosition");
             mxmlNewText(child1, 0, "636");
 
-            mxml_node_t *osdUser = mxmlNewElement(node, "OSDUser");
-            mxml_node_t *child2 = mxmlNewElement(osdUser, "Enable");
-            mxmlNewText(child2, 0, "TRUE");
-            child2 = mxmlNewElement(osdUser, "Name");
-            mxmlNewText(child2, 0, "用户名称UsName48");          // 叠加多种字符
-            child2 = mxmlNewElement(osdUser, "HPosition");
-            mxmlNewText(child2, 0, "1128");
-            child2 = mxmlNewElement(osdUser, "VPosition");
-            mxmlNewText(child2, 0, "936");
+            // mxml_node_t *osdUser = mxmlNewElement(node, "OSDUser");
+            // mxml_node_t *child2 = mxmlNewElement(osdUser, "Enable");
+            // mxmlNewText(child2, 0, "TRUE");
+            // child2 = mxmlNewElement(osdUser, "Name");
+            // mxmlNewText(child2, 0, "用户名称UsName48");          // 叠加多种字符
+            // child2 = mxmlNewElement(osdUser, "HPosition");
+            // mxmlNewText(child2, 0, "1128");
+            // child2 = mxmlNewElement(osdUser, "VPosition");
+            // mxmlNewText(child2, 0, "936");
 
             mxml_node_t *osdExtend = mxmlNewElement(node, "OSDExtend");
             mxmlElementSetAttr(osdExtend, "Num", "1");
@@ -2397,6 +2507,144 @@ void GB28181Server::do_control_OSDParamConfig(const CameraDevice &deviceNode)
     }
 }
 
+void GB28181Server::do_control_OSDParamConfig1(const CameraDevice &deviceNode)
+{
+    SPDLOG_INFO("do_control_OSDParamConfig enter OSD参数配置");
+
+    char sn[32] = {0};
+    int ret;
+    mxml_node_t *tree, *query, *node;
+
+    static bool profile_1 = true;
+
+    // peCtx
+    auto peCtx = eCtx;
+
+    const char *deviceId = deviceNode.DeviceID.c_str();
+    const char *platformSipId = SERVER_SIP_ID;
+
+    const char *platformIpAddr= deviceNode.IPAddress.c_str();
+    int platformSipPort = deviceNode.Port;
+
+    const char *localSipId = SERVER_SIP_ID;
+    const char *localIpAddr= LOCAL_IP;
+
+    const int BUFF_SIZE = 4*1024;
+
+    tree = mxmlNewXML("1.0");
+    if (tree != NULL)
+    {
+        query = mxmlNewElement(tree, "Control");
+        if (query != NULL)
+        {
+            char buf[BUFF_SIZE] = { 0 };
+            char dest_call[256], source_call[256];
+
+            node = mxmlNewElement(query, "CmdType");
+            mxmlNewText(node, 0, "DeviceConfig");
+
+            node = mxmlNewElement(query, "SN");
+            snprintf(sn, 32, "%d", SN++);
+            mxmlNewText(node, 0, sn);
+
+            node = mxmlNewElement(query, "DeviceID");
+            mxmlNewText(node, 0, deviceId);
+
+            node = mxmlNewElement(query, "OSDParamConfig");
+
+            mxml_node_t *node1;
+
+            if(profile_1) {
+                node1 = mxmlNewElement(node, "Font");
+                mxmlNewText(node1, 0, "黑体");
+                node1 = mxmlNewElement(node, "FontSize");
+                mxmlNewText(node1, 0, "72");
+                node1 = mxmlNewElement(node, "TextColor");
+
+                profile_1 = false;
+
+            } else {
+                node1 = mxmlNewElement(node, "Font");
+                mxmlNewText(node1, 0, "楷体");
+                node1 = mxmlNewElement(node, "FontSize");
+                mxmlNewText(node1, 0, "50");
+                node1 = mxmlNewElement(node, "TextColor");
+
+                profile_1 = true;
+            }
+
+
+            mxmlNewText(node1, 0, "0xffffff");
+            node1 = mxmlNewElement(node, "BackGroundColor");
+            mxmlNewText(node1, 0, "0xffffff");
+            node1 = mxmlNewElement(node, "Transparency");
+            mxmlNewText(node1, 0, "255");
+
+            // mxml_node_t *osdName = mxmlNewElement(node, "OSDName");
+            // mxml_node_t *child = mxmlNewElement(osdName, "Enable");
+            // mxmlNewText(child, 0, "FALSE");
+            // child = mxmlNewElement(osdName, "Name");
+            // mxmlNewText(child, 0, "M10太阳宫 厅西A口安检1Q ╋");       // 叠加特殊字符╋ 空格
+            // child = mxmlNewElement(osdName, "HPosition");
+            // mxmlNewText(child, 0, "72");
+            // child = mxmlNewElement(osdName, "VPosition");
+            // mxmlNewText(child, 0, "72");
+
+            mxml_node_t *osdTime = mxmlNewElement(node, "OSDTime");
+            mxml_node_t *child1 = mxmlNewElement(osdTime, "Enable");
+            mxmlNewText(child1, 0, "TRUE");
+            child1 = mxmlNewElement(osdTime, "HPosition");
+            mxmlNewText(child1, 0, "728");
+            child1 = mxmlNewElement(osdTime, "VPosition");
+            mxmlNewText(child1, 0, "636");
+
+            mxml_node_t *osdUser = mxmlNewElement(node, "OSDUser");
+            mxml_node_t *child2 = mxmlNewElement(osdUser, "Enable");
+            mxmlNewText(child2, 0, "TRUE");
+            child2 = mxmlNewElement(osdUser, "Name");
+            mxmlNewText(child2, 0, "用户名称UsName48");          // 叠加多种字符
+            child2 = mxmlNewElement(osdUser, "HPosition");
+            mxmlNewText(child2, 0, "1128");
+            child2 = mxmlNewElement(osdUser, "VPosition");
+            mxmlNewText(child2, 0, "936");
+
+
+
+            mxmlSaveString(tree, buf, BUFF_SIZE, whitespace_cb);
+
+            SPDLOG_INFO("xml buf: {}\n\nend", buf);
+
+            osip_message_t *message = NULL;
+            snprintf(dest_call, 256, "sip:%s@%s:%d", platformSipId, platformIpAddr, platformSipPort);
+            snprintf(source_call, 256, "sip:%s@%s:%d", localSipId, localIpAddr, LOCAL_PORT);
+            ret = eXosip_message_build_request(peCtx, &message, "MESSAGE", dest_call, source_call, NULL);
+            if (ret == 0 && message != NULL)
+            {
+                osip_message_set_body(message, buf, strlen(buf));
+                osip_message_set_content_type(message, "Application/MANSCDP+xml");
+                eXosip_lock(peCtx);
+                eXosip_message_send_request(peCtx, message);
+                eXosip_unlock(peCtx);
+                APP_LOG("xml:%s, dest_call:%s, source_call:%s, ok", buf, dest_call, source_call);
+            }
+            else
+            {
+                APP_LOG("eXosip_message_build_request failed!\n");
+            }
+        }
+        else
+        {
+            APP_LOG("mxmlNewElement Query failed!\n");
+        }
+        mxmlDelete(tree);
+    }
+    else
+    {
+        APP_LOG("mxmlNewXML failed!\n");
+    }
+}
+
+
 
 // OSD 取消参数配置(特殊十字符╋ 空字符)
 void GB28181Server::do_control_OSDParamConfig_Close(const CameraDevice &deviceNode)
@@ -2441,7 +2689,7 @@ void GB28181Server::do_control_OSDParamConfig_Close(const CameraDevice &deviceNo
             mxmlNewText(node, 0, deviceId);
 
             node = mxmlNewElement(query, "OSDParamConfig");
-            
+
             mxml_node_t *node1 = mxmlNewElement(node, "Font");
             mxmlNewText(node1, 0, "黑体");
             node1 = mxmlNewElement(node, "FontSize");
@@ -2859,7 +3107,7 @@ void GB28181Server::do_subscribe_Alarm(const CameraDevice &deviceNode)
             osip_message_t *subscribe = NULL;
             snprintf(dest_call, 256, "sip:%s@%s:%d", deviceId, platformIpAddr, platformSipPort);
             snprintf(source_call, 256, "sip:%s@%s:%d", localSipId, localIpAddr, LOCAL_PORT);
-            
+
             ret = eXosip_subscription_build_initial_subscribe(peCtx, &subscribe, dest_call, source_call, NULL, "presence", 90);
             if (ret == 0 && subscribe != NULL)
             {
@@ -2875,8 +3123,8 @@ void GB28181Server::do_subscribe_Alarm(const CameraDevice &deviceNode)
                 eXosip_lock(peCtx);
                 int subscribe_id = eXosip_subscription_send_initial_request(peCtx, subscribe);
                 eXosip_unlock(peCtx);
-                
-                APP_LOG("send subscribe alarm request, subscribe_id=%d, xml:%s, dest_call:%s, source_call:%s", 
+
+                APP_LOG("send subscribe alarm request, subscribe_id=%d, xml:%s, dest_call:%s, source_call:%s",
                         subscribe_id, buf, dest_call, source_call);
             }
             else
