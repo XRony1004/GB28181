@@ -31,6 +31,8 @@ std::atomic<bool> g_testRunning{false};
 CameraDevice g_currentDevice;
 std::thread g_testThread;
 
+// 添加全局变量用于测试单播叫流
+VideoChannel* g_testVideoChannel = nullptr;
 
 // 显示测试菜单
 void showTestMenu() {
@@ -62,10 +64,51 @@ void showTestMenu() {
     printf("---------流媒体控制---------\n");
     printf(" 21. OSD叠加参数配置-1\n");
     printf(" 22. 单播叫流停止\n");
+    printf(" 23. 单播叫流开始(通道13)\n");
     printf("---------系统功能-----------\n");
-    printf(" 23. 显示菜单\n");
+    printf(" 98. 显示菜单\n");
     printf(" 99. 退出测试\n");
     printf("========================\n");
+}
+
+// 创建测试用的VideoChannel
+VideoChannel* createTestVideoChannel() {
+    if (g_testVideoChannel == nullptr) {
+        g_testVideoChannel = new VideoChannel();
+
+        // 设置通道ID为13
+        g_testVideoChannel->DeviceID = "13";
+
+        // 使用当前设备的IP和端口信息
+        g_testVideoChannel->IPAddress = g_currentDevice.IPAddress;
+        g_testVideoChannel->Port = g_currentDevice.Port;
+
+        // 设置通道名称
+        g_testVideoChannel->DeviceName = "测试通道13";
+
+        // 设置RTP SSRC (重要：用于区分不同的RTP流)
+        g_testVideoChannel->RtpSSRC = 13;
+
+        // 设置状态
+        g_testVideoChannel->Status = "ON";
+
+        printf("创建测试VideoChannel成功:\n");
+        printf("  通道ID: %s\n", g_testVideoChannel->DeviceID.c_str());
+        printf("  设备IP: %s\n", g_testVideoChannel->IPAddress.c_str());
+        printf("  设备端口: %d\n", g_testVideoChannel->Port);
+        printf("  RTP SSRC: %d\n", g_testVideoChannel->RtpSSRC);
+    }
+
+    return g_testVideoChannel;
+}
+
+// 清理测试VideoChannel
+void cleanupTestVideoChannel() {
+    if (g_testVideoChannel != nullptr) {
+        delete g_testVideoChannel;
+        g_testVideoChannel = nullptr;
+        printf("清理测试VideoChannel完成\n");
+    }
 }
 
 // 执行指定的测试功能
@@ -174,15 +217,30 @@ void executeTestFunction(int functionIndex) {
             g_server->do_control_RealStop(g_currentDevice);
             break;
         case 23:
+            {
+                printf("=== [单播叫流开始(通道13)] ===\n");
+                VideoChannel* testChannel = createTestVideoChannel();
+                if (testChannel != nullptr) {
+                    printf("发起单播叫流请求...\n");
+                    g_server->doSendInvitePlay(testChannel);
+                    printf("单播叫流请求已发送，等待设备响应\n");
+                    printf("注意：如果要停止流传输，请使用功能22(单播叫流停止)\n");
+                } else {
+                    printf("创建测试通道失败！\n");
+                }
+            }
+            break;
+        case 98:
             showTestMenu();
             break;
         case 99:
             printf("退出测试模式\n");
+            cleanupTestVideoChannel(); // 清理资源
             g_testRunning = false;
             break;
         default:
             printf("无效的功能编号: %d\n", functionIndex);
-            printf("请输入 0-23 或 99 退出\n");
+            printf("请输入 0-24 或 99 退出\n");
             break;
     }
 }
@@ -191,11 +249,11 @@ void executeTestFunction(int functionIndex) {
 void runTestLoop() {
     printf("设备注册成功，进入交互式测试模式\n");
     showTestMenu();
-    
+
     while (g_testRunning) {
-        printf("\n请输入功能编号 (输入21显示菜单, 99退出): ");
+        printf("\n请输入功能编号 (输入24显示菜单, 99退出): ");
         fflush(stdout);
-        
+
         int choice;
         if (scanf("%d", &choice) != 1) {
             // 清理输入缓冲区
@@ -204,20 +262,20 @@ void runTestLoop() {
             printf("输入错误，请输入数字\n");
             continue;
         }
-        
+
         // 清理输入缓冲区中的换行符
         int c;
         while ((c = getchar()) != '\n' && c != EOF);
-        
+
         if (!g_testRunning) break;
-        
+
         executeTestFunction(choice);
-        
+
         if (choice == 99) {
             break;
         }
     }
-    
+
     printf("测试循环结束\n");
 }
 #endif
@@ -431,7 +489,7 @@ void MyEventHandler::onDeviceRegisted(const CameraDevice &device)
     printf("设备注册成功，开始测试循环\n");
     // 保存设备信息
     g_currentDevice = device;
-    
+
     // 启动测试循环
     if (!g_testRunning) {
         g_testRunning = true;
@@ -477,7 +535,7 @@ void MyEventHandler::onDeviceUpdate(const CameraDevice &device)
     g_server->doSendVideoParamConfig(device);
 
 #endif
-    
+
 
 }
 
@@ -493,9 +551,12 @@ int main()
     // GB28181Server *server = new GB28181Server();
     g_server = new GB28181Server();
 
-    g_server->setLocalIp("10.255.174.162", 5060);
-    g_server->setGBServerInfo("9900012000103", "12345678", "990001");
+    // 京投大厦那台设备测试环境
+    // g_server->setLocalIp("10.255.174.162", 5060);
+    // g_server->setGBServerInfo("9900012000103", "12345678", "990001");
 
+    g_server->setLocalIp("192.168.2.161", 15060);
+    g_server->setGBServerInfo("34020000002000000002", "12345678", "3402000000");
     g_server->setEventHandle(new MyEventHandler());
 
     g_server->start();
