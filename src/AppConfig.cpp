@@ -240,7 +240,7 @@ void executeTestFunction(int functionIndex) {
             break;
         default:
             printf("无效的功能编号: %d\n", functionIndex);
-            printf("请输入 0-24 或 99 退出\n");
+            printf("请输入 0-23 或 98:显示菜单 或 99:退出\n");
             break;
     }
 }
@@ -251,7 +251,7 @@ void runTestLoop() {
     showTestMenu();
 
     while (g_testRunning) {
-        printf("\n请输入功能编号 (输入24显示菜单, 99退出): ");
+        printf("\n请输入功能编号 (输入98显示菜单, 99退出): ");
         fflush(stdout);
 
         int choice;
